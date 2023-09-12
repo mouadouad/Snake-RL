@@ -1,0 +1,192 @@
+from __future__ import absolute_import, division, print_function
+import numpy as np
+import tensorflow as tf
+from tf_agents.specs import array_spec
+from tf_agents.environments import py_environment
+from tf_agents.trajectories import time_step as ts
+
+tf.compat.v1.enable_v2_behavior()
+
+
+class SnakeEnv(py_environment.PyEnvironment):
+    def __init__(self):
+        self.width = 1080
+        self.height = 1770
+        self.left_edge = [0, 0, 20, 1600]
+        self.rigth_edge = [1060, 0, 1080, 1600]
+        self.top_edge = [0, 0, 1080, 20]
+        self.bot_edge = [0, 1580, 1080, 1600]
+        self.still_traveling = True
+        self.my_variables = [[30, 1590, 1600, 0]]
+        self.his_variables = [[0, 0, 0, 0]]
+        self.my_counter = 1
+        self.his_counter = 1
+        self.score = 0
+        # self.observation_spec = specs.TensorSpec([4], tf.int64, 'observation')
+        self._observation_spec = array_spec.BoundedArraySpec(
+            shape=(100, 4), dtype=np.float32, name='observation')
+        self._action_spec = array_spec.BoundedArraySpec(
+            shape=(), dtype=np.int32, minimum=0, maximum=2, name='action')
+        # self.time_step_spec = ts.time_step_spec(self.observation_spec)
+
+    def observation_spec(self):
+        return self._observation_spec
+
+    def action_spec(self):
+        return self._action_spec
+
+    def _reset(self):
+        self.still_traveling = True
+        self.my_variables = [Position().return_position()]
+        self.his_variables = [[0, 1, 1, 0]]
+        self.my_counter = 1
+        self.his_counter = 1
+        self.bump_self = 0
+        self.score = 0
+        result = np.zeros((100, 4), dtype=np.float32)
+        a = np.array(self.my_variables)
+        result[:a.shape[0], :a.shape[1]] = a
+        return ts.restart(result)
+
+    def _step(self, action):
+
+        if not self.still_traveling:
+            return self.reset()
+
+        # while still_traveling:
+        self.score += 1
+
+        # his_variables[his_counter-1][1]-=30
+
+        if action == 1:
+            # turn right
+            lastposition = self.my_variables[self.my_counter - 1][3]
+
+            if lastposition == 90:
+                lastposition = 180
+            elif lastposition == -90:
+                lastposition = 0
+            elif lastposition == 180:
+                lastposition = -90
+            elif lastposition == 0:
+                lastposition = 90
+
+            first_rect_postition1 = [0, 0, 0, 0]
+
+            first_rect_postition1[0] = self.my_variables[self.my_counter - 1][1]
+            first_rect_postition1[1] = -self.my_variables[self.my_counter - 1][0] - 30
+            first_rect_postition1[2] = -self.my_variables[self.my_counter - 1][0] - 30
+            first_rect_postition1[3] = lastposition
+
+            self.my_variables.append(first_rect_postition1)
+            self.my_counter += 1
+
+        elif action == 2:
+            # turn left
+            lastposition = self.my_variables[self.my_counter - 1][3]
+
+            if lastposition == 90:
+                lastposition = 0
+            elif lastposition == -90:
+                lastposition = 180
+            elif lastposition == 180:
+                lastposition = 90
+            elif lastposition == 0:
+                lastposition = -90
+
+            first_rect_postition = [0, 0, 0, 0]
+
+            first_rect_postition[0] = -self.my_variables[self.my_counter - 1][1] - 30
+            first_rect_postition[1] = self.my_variables[self.my_counter - 1][0]
+            first_rect_postition[2] = self.my_variables[self.my_counter - 1][0]
+            first_rect_postition[3] = lastposition
+
+            self.my_variables.append(first_rect_postition)
+            self.my_counter += 1
+
+        self.my_variables[self.my_counter - 1][1] -= 50
+
+        # SETTING THE CHECKER
+        lastposition = self.my_variables[self.my_counter - 1][3]
+        gauche = self.my_variables[self.my_counter - 1][0]
+        haut = self.my_variables[self.my_counter - 1][1]
+
+        if lastposition == 90:
+            checker = [-haut - 1, gauche, -haut, gauche + 30]
+        elif lastposition == -90:
+            checker = [haut, -gauche - 30, haut - 1, -gauche]
+        elif lastposition == 180:
+            checker = [-gauche - 30, -haut - 1, -gauche, -haut]
+        else:
+            checker = [gauche, haut, gauche + 30, haut + 1]
+
+        for forloop in range(self.my_counter):
+            left = self.my_variables[forloop][0]
+            top = self.my_variables[forloop][1]
+            bot = self.my_variables[forloop][2]
+            lastposition = self.my_variables[forloop][3]
+
+            if lastposition == 90:
+                rect1 = [-bot, left, -top, left + 30]
+            elif lastposition == -90:
+                rect1 = [top, -left - 30, bot, -left]
+            elif lastposition == 180:
+                rect1 = [-left - 30, -bot, -left, -top]
+            else:
+                rect1 = [left, top, left + 30, bot]
+                
+            #CHECK IF BUMP INTO SELF
+            if checker[0] < rect1[2] and checker[2] > rect1[0] and checker[1] < rect1[3] and checker[3] > \
+                    rect1[1] and forloop < self.my_counter - 1:
+                if self.bump_self == 0:
+                    self.bump_self = 1
+                else:
+                    self.still_traveling = False
+
+        for forloop in range(self.his_counter):
+            left = self.his_variables[forloop][0]
+            top = self.his_variables[forloop][1]
+            bot = self.his_variables[forloop][2]
+            lastposition = self.his_variables[forloop][3]
+
+            if lastposition == 90:
+                rect1 = [-bot, left, -top, left + 30]
+            elif lastposition == -90:
+                rect1 = [top, -left - 30, bot, -left]
+            elif lastposition == 180:
+                rect1 = [-left - 30, -bot, -left, -top]
+            else:
+                rect1 = [left, top, left + 30, bot]
+
+            if checker[0] < rect1[2] and checker[2] > rect1[0] and checker[1] < rect1[3] and checker[3] > \
+                    rect1[1] and forloop < self.my_counter - 1:
+                self.still_traveling = False
+
+        # CHECK IF BUMP TO EDGES
+        left_edge = self.left_edge
+        right_edge = self.rigth_edge
+        top_edge = self.top_edge
+        bot_edge = self.bot_edge
+
+        left_b = checker[0] < left_edge[2] and checker[1] < left_edge[3] and \
+                 checker[3] > left_edge[1]
+        right_b = checker[2] > right_edge[0] and checker[1] < right_edge[3] and \
+                  checker[3] > right_edge[1]
+        top_b = checker[0] < top_edge[2] and checker[2] > top_edge[0] and checker[1] < top_edge[3]
+
+        bot_b = checker[0] < bot_edge[2] and checker[2] > bot_edge[0] and checker[3] > \
+                bot_edge[1]
+
+        if left_b or right_b or top_b or bot_b:
+            self.still_traveling = False
+
+        result = np.zeros((100, 4), dtype=np.float32)
+        a = np.array(self.my_variables)
+        result[:a.shape[0], :a.shape[1]] = a
+
+        if self.still_traveling:
+            reward = 1
+            return ts.transition(result, reward)
+        else:
+            reward = 0
+            return ts.termination(result, reward)

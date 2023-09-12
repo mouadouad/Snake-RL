@@ -1,0 +1,7 @@
+model 8 : fc_layer_params = (3000,200,10)	num_iterations = 10000
+model 9 : fc_layer_params = (1000,)	num_iterations = 100000
+model 10 : fc_layer_params = (1000,100,20)	num_iterations = 50000
+
+REINFORCE
+model 11 : fc_layer_params = (3000,)	num_iterations = 100000  min_q_value = -20  
+max_q_value = 20

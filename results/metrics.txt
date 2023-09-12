@@ -1,0 +1,2 @@
+model1 : train_agent4, random position, empty grid,  100 params, 100000 iterations, 1e-3, best at 1459, last 20 steps more than 1000
+model2 : same as model1 , but with double the iterations, worse results at the end of the training, but better results in actual game
