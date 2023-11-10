@@ -1,25 +1,25 @@
 import random
-from directions import Directions
+from SnakeGame.directions import Directions
 
 
 class Position:
     def __init__(self, side, rows, columns):
         if side == 0:  # left side
             self.direction = Directions.RIGHT
-            self.x = random.randint(0, rows)
+            self.x = random.randint(0, rows - 1)
             self.y = 0
         elif side == 1:  # top side
             self.direction = Directions.DOWN
             self.x = 0
-            self.y = random.randint(0, columns)
+            self.y = random.randint(0, columns - 1)
         elif side == 2:  # right side
             self.direction = Directions.LEFT
-            self.x = random.randint(0, rows)
-            self.y = columns
+            self.x = random.randint(0, rows - 1)
+            self.y = columns - 1
         else:  # bottom side
             self.direction = Directions.UP
-            self.x = rows
-            self.y = random.randint(0, columns)
+            self.x = rows - 1
+            self.y = random.randint(0, columns - 1)
 
     def head(self):
         return self.x, self.y

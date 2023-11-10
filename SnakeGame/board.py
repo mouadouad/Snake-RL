@@ -1,5 +1,5 @@
 import numpy as np
-from directions import Directions
+from SnakeGame.directions import Directions
 
 
 class Board:
@@ -8,7 +8,7 @@ class Board:
         self.height = 1770
         self.rows_count = int(self.height / pixels)
         self.columns_count = int(self.width / pixels)
-        self.board = np.zeros((self.rows_count, self.columns_count))
+        self.board = np.zeros((self.rows_count, self.columns_count), dtype=np.int32)
 
     def starting_position(self, position):
         self.board[position[0], position[1]] = 2

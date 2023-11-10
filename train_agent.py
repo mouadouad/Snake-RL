@@ -1,7 +1,8 @@
-from __future__ import absolute_import, division, print_function
+from SnakeGame.snakeGame import SnakeGame
+
 import os
 import tensorflow as tf
-import snake
+
 from tf_agents.environments import tf_py_environment
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.networks import q_network
@@ -11,34 +12,33 @@ from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
 from tf_agents.policies import policy_saver
 
-#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
-#tf.compat.v1.enable_v2_behavior()
 
-num_iterations = 10000  # @param {type:"integer"}
+num_iterations = 100000  # @param {type:"integer"}
 
 initial_collect_steps = 1000  # @param {type:"integer"}
 collect_steps_per_iteration = 1  # @param {type:"integer"}
 replay_buffer_max_length = 100000  # @param {type:"integer"}
 
 batch_size = 64  # @param {type:"integer"}
-learning_rate = 1e-3  # @param {type:"number"}
+learning_rate = 1e-5  # @param {type:"number"}
 log_interval = 1000  # @param {type:"integer"}
 
 num_eval_episodes = 10  # @param {type:"integer"}
 eval_interval = 1000  # @param {type:"integer"}
-train_py_env = snake.SnakeEnv()
-eval_py_env = snake.SnakeEnv()
+train_py_env = SnakeGame(100)
+eval_py_env = SnakeGame(100)
 
 train_env = tf_py_environment.TFPyEnvironment(train_py_env)
 eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
-fc_layer_params = (2,)
+fc_layer_params = (200,)
 
 q_net = q_network.QNetwork(
     train_env.observation_spec(),
     train_env.action_spec(),
-    fc_layer_params=fc_layer_params)
+    fc_layer_params=fc_layer_params,
+    activation_fn=tf.keras.activations.relu)
 
 optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
 
@@ -49,7 +49,7 @@ agent = dqn_agent.DqnAgent(
     train_env.action_spec(),
     q_network=q_net,
     optimizer=optimizer,
-    td_errors_loss_fn=common.element_wise_squared_loss,  # common.element_wise_huber_loss
+    td_errors_loss_fn=common.element_wise_huber_loss,  # common.element_wise_squared_loss
     train_step_counter=train_step_counter)
 
 agent.initialize()
@@ -140,7 +140,7 @@ for _ in range(num_iterations):
 collect_policy = agent.collect_policy
 
 tf_policy_saver = policy_saver.PolicySaver(collect_policy)
-policydir = "model1"
+policydir = "model"
 tf_policy_saver.save(policydir)
 # Convert to tflite model
 converter = tf.lite.TFLiteConverter.from_saved_model(
