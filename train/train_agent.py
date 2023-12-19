@@ -1,44 +1,52 @@
-from __future__ import absolute_import, division, print_function
+from SnakeGame.snakeGame import SnakeGame
+
 import os
 import tensorflow as tf
-import snake
+import numpy as np
+
 from tf_agents.environments import tf_py_environment
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.networks import q_network
-from tf_agents.policies import random_tf_policy
+from tf_agents.policies import random_tf_policy, epsilon_greedy_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
 from tf_agents.policies import policy_saver
 
-#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
-#tf.compat.v1.enable_v2_behavior()
 
-num_iterations = 10000  # @param {type:"integer"}
+num_iterations = 1000000  # @param {type:"integer"}
 
-initial_collect_steps = 1000  # @param {type:"integer"}
+initial_collect_steps = 10000  # @param {type:"integer"}
 collect_steps_per_iteration = 1  # @param {type:"integer"}
 replay_buffer_max_length = 100000  # @param {type:"integer"}
 
 batch_size = 64  # @param {type:"integer"}
-learning_rate = 1e-3  # @param {type:"number"}
+learning_rate = 1e-4  # @param {type:"number"}
 log_interval = 1000  # @param {type:"integer"}
 
 num_eval_episodes = 10  # @param {type:"integer"}
 eval_interval = 1000  # @param {type:"integer"}
-train_py_env = snake.SnakeEnv()
-eval_py_env = snake.SnakeEnv()
+train_py_env = SnakeGame(100)
+eval_py_env = SnakeGame(100)
+
+initial_epsilon = 1.0
+final_epsilon = 0.01
+epsilon_decay_steps = 100000  # Adjust the decay steps as needed
+
+
+epsilon = tf.Variable(initial_epsilon, trainable=False, dtype=tf.float32)
 
 train_env = tf_py_environment.TFPyEnvironment(train_py_env)
 eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
-fc_layer_params = (2,)
+fc_layer_params = (100,)
 
 q_net = q_network.QNetwork(
     train_env.observation_spec(),
     train_env.action_spec(),
-    fc_layer_params=fc_layer_params)
+    fc_layer_params=fc_layer_params,
+    activation_fn=tf.keras.activations.relu)
 
 optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
 
@@ -59,6 +67,9 @@ collect_policy = agent.collect_policy
 
 random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(),
                                                 train_env.action_spec())
+
+epsilon_greedy = epsilon_greedy_policy.EpsilonGreedyPolicy(
+    collect_policy, epsilon=epsilon)
 
 
 def compute_avg_return(environment, policy, num_episodes=10):
@@ -86,7 +97,21 @@ replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
 
 def collect_step(environment, policy, buffer):
     time_step = environment.current_time_step()
+
+    # Apply epsilon-greedy exploration
     action_step = policy.action(time_step)
+    # Random exploration with probability epsilon
+    if np.random.uniform() < epsilon.numpy() and policy != random_policy:
+        action_step = action_step._replace(action=tf.nest.map_structure(
+            lambda spec: tf.expand_dims(
+                tf.random.uniform(shape=spec.shape, minval=spec.minimum, maxval=spec.maximum + 1, dtype=spec.dtype),
+                axis=-1
+            ),
+            train_env.action_spec()
+        ))
+
+    # Add trajectory to the replay buffe
+    # action_step = policy.action(time_step)
     next_time_step = environment.step(action_step.action)
     traj = trajectory.from_transition(time_step, action_step, next_time_step)
 
@@ -120,6 +145,13 @@ returns = [avg_return]
 
 for _ in range(num_iterations):
 
+     # Update epsilon based on the annealing schedule
+    epsilon.assign(tf.maximum(final_epsilon, initial_epsilon - tf.cast(agent.train_step_counter, tf.float32) / epsilon_decay_steps))
+
+    # Collect data from the training environment using epsilon-greedy exploration
+    # collect_data(train_env, epsilon_greedy, replay_buffer, collect_steps_per_iteration)
+
+
     # Collect a few steps using collect_policy and save to the replay buffer.
     collect_data(train_env, agent.collect_policy, replay_buffer, collect_steps_per_iteration)
 
@@ -140,7 +172,7 @@ for _ in range(num_iterations):
 collect_policy = agent.collect_policy
 
 tf_policy_saver = policy_saver.PolicySaver(collect_policy)
-policydir = "model1"
+policydir = "model"
 tf_policy_saver.save(policydir)
 # Convert to tflite model
 converter = tf.lite.TFLiteConverter.from_saved_model(

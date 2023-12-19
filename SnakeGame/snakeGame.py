@@ -19,9 +19,10 @@ class SnakeGame(py_environment.PyEnvironment, ABC):
         self.my_snake = Snake(side, self.board.rows_count, self.board.columns_count)
         self.board.starting_position(self.my_snake.head)
         self.isPlaying = True
+        self.score = 0
 
         self._observation_spec = array_spec.BoundedArraySpec(
-            shape=(self.board.rows_count, self.board.columns_count), dtype=np.int32, name='observation')
+            shape=(self.board.obs_size, self.board.obs_size), dtype=np.int32, name='observation')
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=2, name='action')
 
@@ -37,10 +38,12 @@ class SnakeGame(py_environment.PyEnvironment, ABC):
         self.my_snake = Snake(side, self.board.rows_count, self.board.columns_count)
         self.board.starting_position(self.my_snake.head)
         self.isPlaying = True
+        self.score = 0
 
-        return ts.restart(self.board.board)
+        return ts.restart(self.board.observation(self.my_snake.head))
 
     def _step(self, action):
+        self.score += 1
         if not self.isPlaying:
             return self.reset()
 
@@ -54,15 +57,15 @@ class SnakeGame(py_environment.PyEnvironment, ABC):
         elif action == 2:  # turn left
             next_direction = list(Directions)[(direction.value - 1) % 4]
 
-        next_position = self.board.next_position(head, next_direction)
+        next_position = Board.next_position(head, next_direction)
 
         if self.board.can_advance(*next_position):
             self.board.advance(head, next_position)
             self.my_snake.set_head(next_position)
             self.my_snake.set_direction(next_direction)
-            reward = 1
-            return ts.transition(self.board.board, reward)
+            reward = 1.02**self.score
+            return ts.transition(self.board.observation(next_position), reward)
         else:
             self.isPlaying = False
-            reward = 0
-            return ts.termination(self.board.board, reward)
+            reward = -10
+            return ts.termination(self.board.observation(next_position), reward)
