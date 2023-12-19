@@ -1,0 +1,5 @@
+lr = 1e-4
+fc_params = (1000, 200, 50)
+pixels : 100
+max : 52
+finish : 42
