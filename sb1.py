@@ -42,7 +42,7 @@ os.makedirs(model_dir)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
-env = Snake(100)
+env = Snake(30)
 env.reset()
 
 model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=log_dir)
