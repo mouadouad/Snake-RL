@@ -3,12 +3,15 @@ from SnakeGame.directions import Directions
 
 
 class Board:
-    def __init__(self, pixels):
+    def __init__(self, pixels, obs_size):
         self.width = 1080
         self.height = 1600
-        self.obs_size = 15
+        self.obs_size = obs_size
         self.rows_count = int(self.height / pixels)
         self.columns_count = int(self.width / pixels)
+        self.board = np.zeros((self.rows_count, self.columns_count), dtype=np.int32)
+
+    def reset(self):
         self.board = np.zeros((self.rows_count, self.columns_count), dtype=np.int32)
 
     def starting_position(self, position, opponent_position):
@@ -33,7 +36,7 @@ class Board:
 
     def advance(self, head, next_position, i=1):
         if self.board[head[0], head[1]] != 2 * i:
-            #raise Exception('Invalid head')
+            # raise Exception('Invalid head')
             pass
 
         self.board[head[0], head[1]] = 1 * i

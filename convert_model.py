@@ -6,6 +6,7 @@ import onnx
 import onnx_tf.backend
 import tensorflow as tf
 
+
 class OnnxablePolicy(th.nn.Module):
     def __init__(self, extractor, action_net, value_net):
         super().__init__()
@@ -22,7 +23,7 @@ class OnnxablePolicy(th.nn.Module):
         return self.action_net(action_hidden), self.value_net(value_hidden)
 
 
-model = PPO.load("models/PPO_6/820000.zip", device="cpu")
+model = PPO.load("models/PPO_2/820000.zip", device="cpu")
 onnxable_model = OnnxablePolicy(
     model.policy.mlp_extractor, model.policy.action_net, model.policy.value_net
 )

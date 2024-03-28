@@ -12,11 +12,11 @@ from tf_agents.trajectories import time_step as ts
 
 
 class SnakeGame(py_environment.PyEnvironment, ABC):
-    def __init__(self, pixels):
+    def __init__(self, pixels, obs_size, model):
         super().__init__()
         self.pixels = pixels
-        self.board = Board(pixels)
-        self.model = PPO.load("models/PPO_17/920000.zip")
+        self.board = Board(pixels, obs_size)
+        self.model = PPO.load(f"models/{model}")
         side = random.randint(0, 4)
         self.my_snake = Snake(side, self.board.rows_count, self.board.columns_count)
         self.his_snake = Snake((side + 2) % 4, self.board.rows_count, self.board.columns_count)
@@ -37,7 +37,7 @@ class SnakeGame(py_environment.PyEnvironment, ABC):
         return self._action_spec
 
     def _reset(self):
-        self.board = Board(self.pixels)
+        self.board.reset()
         side = random.randint(0, 4)
         self.my_snake = Snake(side, self.board.rows_count, self.board.columns_count)
         self.his_snake = Snake((side + 2) % 4, self.board.rows_count, self.board.columns_count)
@@ -47,6 +47,9 @@ class SnakeGame(py_environment.PyEnvironment, ABC):
         self.score = 0
 
         return ts.restart(self.board.observation(self.my_snake.head, self.board.board))
+
+    def set_model(self, model):
+        self.model = PPO.load(f"models/{model}")
 
     @staticmethod
     def get_next_position(snake, action):
@@ -75,26 +78,27 @@ class SnakeGame(py_environment.PyEnvironment, ABC):
 
     def _step(self, action):
         opponent_action = self.model.predict(self.board.observation(self.his_snake.head, self.board.board * -1))
-        self.opponent_step(opponent_action)
+        self.opponent_step(opponent_action[0])
         self.score += 1
-        if not self.isPlaying:
-            return self.reset()
 
         next_position, next_direction, head = self.get_next_position(self.my_snake, action)
+
+        if not self.isPlaying:
+            reward = 10
+            return ts.termination(self.board.observation(next_position, self.board.board), reward)
 
         if self.board.can_advance(*next_position):
             self.board.advance(head, next_position)
             self.my_snake.set_head(next_position)
             self.my_snake.set_direction(next_direction)
-            reward = 1.01**self.score
-            # reward = 1
+            # reward = 1.01**self.score
+            reward = 1
             return ts.transition(self.board.observation(next_position, self.board.board), reward)
         elif not self.won:
             self.isPlaying = False
             reward = -10
             return ts.termination(self.board.observation(next_position, self.board.board), reward)
         else:
-            reward = 1.01 ** self.score + 10
+            # reward = 1.01 ** self.score + 10
+            reward = 10
             return ts.termination(self.board.observation(next_position, self.board.board), reward)
-
-
