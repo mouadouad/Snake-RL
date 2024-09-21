@@ -23,7 +23,7 @@ class OnnxablePolicy(th.nn.Module):
         return self.action_net(action_hidden), self.value_net(value_hidden)
 
 
-model = PPO.load("models/PPO_2/820000.zip", device="cpu")
+model = PPO.load("models/PPO_21/3980000.zip", device="cpu")
 onnxable_model = OnnxablePolicy(
     model.policy.mlp_extractor, model.policy.action_net, model.policy.value_net
 )
@@ -41,7 +41,7 @@ th.onnx.export(
 onnx_model = onnx.load("model.onnx")
 onnx.checker.check_model(onnx_model)
 
-tf_rep = onnx_tf.backend.prepare("model.onnx")
+tf_rep = onnx_tf.backend.prepare(onnx_model)
 tf_rep.export_graph("model")
 
 print('Converting TF to TFLite...')
