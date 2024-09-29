@@ -2,11 +2,11 @@ from SnakeGame.snake import Snake
 from SnakeGame.directions import Directions
 from SnakeGame.board import Board
 
-import numpy as np
 import random
 from stable_baselines3 import PPO
 
-class SnakeGame():
+
+class SnakeGame:
     def __init__(self, pixels, obs_size, player2_model=None):
         super().__init__()
         self.pixels = pixels
@@ -26,9 +26,6 @@ class SnakeGame():
     def observation_spec(self):
         return self._observation_spec
 
-    def action_spec(self):
-        return self._action_spec
-
     def reset(self):
         self.board.reset()
         side = random.randint(0, 4)
@@ -39,7 +36,7 @@ class SnakeGame():
         self.won = False
         self.score = 0
 
-        return self.board.observation(self.my_snake.head, self.board.board)
+        return self.board.observation(self.my_snake.head, self.board.board, self.observation_spec()), dict()
 
     def set_player2_model(self, model):
         if hasattr(self, 'player2_model'):
@@ -72,7 +69,8 @@ class SnakeGame():
 
     def step(self, action):
         if hasattr(self, 'player2_model'):
-            opponent_action = self.player2_model.predict(self.board.observation(self.his_snake.head, self.board.board * -1))
+            opponent_action = self.player2_model.predict(
+                self.board.observation(self.his_snake.head, self.board.board * -1, self.player2_model.observation_space.shape))
             self.opponent_step(opponent_action[0])
         self.score += 1
 
@@ -80,16 +78,16 @@ class SnakeGame():
 
         if not self.isPlaying:
             reward = 10
-            return self.board.observation(next_position, self.board.board), reward, True
+            return self.board.observation(next_position, self.board.board, self.observation_spec()), reward, True, dict()
 
         if self.board.can_advance(*next_position):
             self.board.advance(head, next_position)
             self.my_snake.set_head(next_position)
             self.my_snake.set_direction(next_direction)
             # reward = 1.01**self.score
-            reward = 1
-            return self.board.observation(next_position, self.board.board), reward, False
+            reward = 0.2
+            return self.board.observation(next_position, self.board.board, self.observation_spec()), reward, False, dict()
         elif not self.won:
             self.isPlaying = False
-            reward = -10
-            return self.board.observation(next_position, self.board.board), reward, True
+            reward = -1
+            return self.board.observation(next_position, self.board.board, self.observation_spec()), reward, True, dict()

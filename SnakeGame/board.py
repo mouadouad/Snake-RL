@@ -7,6 +7,7 @@ class Board:
         self.width = 1080
         self.height = 1600
         self.obs_size = obs_size
+        self.pixels = pixels
         self.rows_count = int(self.height / pixels)
         self.columns_count = int(self.width / pixels)
         self.board = np.zeros((self.rows_count, self.columns_count), dtype=np.int32)
@@ -42,14 +43,16 @@ class Board:
         self.board[head[0], head[1]] = 1 * i
         self.board[next_position[0], next_position[1]] = 2 * i
 
-    def observation(self, head, board):
-        n = self.obs_size
+    def observation(self, head, board, obs_size):
+        n = obs_size[0]
+        rows_count = int(self.height / self.pixels)
+        columns_count = int(self.width / self.pixels)
         observation = np.zeros((n, n), dtype=np.int32)
         for i in range(n):
             for j in range(n):
                 x = head[0] - n//2 + i
                 y = head[1] - n//2 + j
-                if x < 0 or x >= self.rows_count or y < 0 or y >= self.columns_count:
+                if x < 0 or x >= rows_count or y < 0 or y >= columns_count:
                     observation[i, j] = -1
                 else:
                     observation[i, j] = board[x, y]

@@ -23,7 +23,7 @@ class OnnxablePolicy(th.nn.Module):
         return self.action_net(action_hidden), self.value_net(value_hidden)
 
 
-model = PPO.load("models/PPO_21/3980000.zip", device="cpu")
+model = PPO.load("models/PPO_10/280000.zip", device="cpu")
 onnxable_model = OnnxablePolicy(
     model.policy.mlp_extractor, model.policy.action_net, model.policy.value_net
 )

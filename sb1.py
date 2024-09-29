@@ -1,8 +1,8 @@
-from typing import Callable, Tuple
+from typing import Callable
 import os
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium
+from gymnasium import spaces
 import matplotlib.pyplot as plt
 import torch.nn as nn
 from typing import Tuple
@@ -13,12 +13,12 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 PIXELS = 40
-OBS_SIZE = 15
+OBS_SIZE = 40
 PLAYER2_MODEL = None
-MODEL_TO_LOAD = "PPO_17/3980000.zip"
+MODEL_TO_LOAD = "PPO_14/2860000"
 
 
-class Snake(gym.Env):
+class Snake(gymnasium.Env):
     def __init__(self, pixels, obs_size, player2_model):
         super(Snake, self).__init__()
         self.game = SnakeGame(pixels, obs_size, player2_model)
@@ -27,7 +27,7 @@ class Snake(gym.Env):
         self.is_render = False
         self.cax = None
 
-    def reset(self):
+    def reset(self, **kwargs):
         return self.game.reset()
 
     def step(self, action):
@@ -49,26 +49,26 @@ class Snake(gym.Env):
         plt.show(block=False)
         plt.draw()
         plt.pause(0.1)
-        
-        
+
         def on_close(event):
             self.is_render = False
             plt.close()
+
         fig.canvas.mpl_connect('close_event', on_close)
-    
 
     def close(self):
         self.is_render = False
         plt.close()
 
+
 class CustomNetwork(nn.Module):
     def __init__(
-        self,
-        feature_dim: int,
-        hidden_dim: int = 128,
-        num_hidden_layers: int = 2,
-        output_dim_pi: int = 64,
-        output_dim_vf: int = 64,
+            self,
+            feature_dim: int,
+            hidden_dim: int = 128,
+            num_hidden_layers: int = 2,
+            output_dim_pi: int = 64,
+            output_dim_vf: int = 64,
     ):
         super().__init__()
 
@@ -84,10 +84,10 @@ class CustomNetwork(nn.Module):
         self.value_net = self._build_network(feature_dim, hidden_dim, output_dim_vf)
 
     def _build_network(self, input_dim, hidden_dim, output_dim):
-        layers = []
+        layers = list()
         layers.append(nn.Linear(input_dim, hidden_dim))
         layers.append(nn.ReLU())
-        
+
         for _ in range(self.num_hidden_layers):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())
@@ -113,12 +113,12 @@ class CustomNetwork(nn.Module):
 
 class CustomActorCriticPolicy(ActorCriticPolicy):
     def __init__(
-        self,
-        observation_space: spaces.Space,
-        action_space: spaces.Space,
-        lr_schedule: Callable[[float], float],
-        *args,
-        **kwargs,
+            self,
+            observation_space: spaces.Space,
+            action_space: spaces.Space,
+            lr_schedule: Callable[[float], float],
+            *args,
+            **kwargs,
     ):
         kwargs["ortho_init"] = False
         super().__init__(
@@ -128,7 +128,6 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
             *args,
             **kwargs,
         )
-
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = CustomNetwork(self.features_dim)
@@ -151,12 +150,12 @@ if not os.path.exists(log_dir):
 env = Snake(pixels=PIXELS, obs_size=OBS_SIZE, player2_model=PLAYER2_MODEL)
 env.reset()
 
-model = PPO(CustomActorCriticPolicy, env, verbose=1, tensorboard_log=log_dir)
+model = PPO(CustomActorCriticPolicy, env, verbose=1, tensorboard_log=log_dir, device="cpu", ent_coef=0.001)
 
-# model = PPO.load(r"models/{MODEL_TO_LOAD}", env, verbose=1, tensorboard_log=log_dir)
+# model = PPO.load(f"models/{MODEL_TO_LOAD}", env, verbose=1, tensorboard_log=log_dir, device="cuda")
 for i in range(1, 200):
     model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_{model_number}")
-    model.save(f"{model_dir}/{TIMESTEPS*i}")
-    env.set_player2_model(f"PPO_{model_number}/{TIMESTEPS*i}")
+    model.save(f"{model_dir}/{TIMESTEPS * i}")
+    # env.set_player2_model(f"PPO_{model_number}/{TIMESTEPS * i}")
     # env.render()
-    env.close()
+    # env.close()

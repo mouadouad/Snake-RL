@@ -2,10 +2,11 @@ import matplotlib.pyplot as plt
 from SnakeGame.snakeGame import SnakeGame
 from stable_baselines3 import PPO
 
-env = SnakeGame(30, 30, 'PPO_2/1340000.zip')
-observation = env.reset()
 
-model = PPO.load(f"models/PPO_3/340000.zip")
+model = PPO.load(f"models/PPO_40/3940000.zip")
+
+env = SnakeGame(40, 40, "PPO_40/3940000")
+observation, info = env.reset()
 
 fig, ax = plt.subplots()
 grid = env.board.board
@@ -21,9 +22,9 @@ while True:
     # except:
     #     action = 0
     action = model.predict(observation)[0]
-    observation, _, done = env.step(action)
+    observation, _, done, info = env.step(action)
     if done:
-        observation = env.reset()
+        observation, info = env.reset()
     grid = env.board.board
     cax.set_data(grid)
     plt.draw()

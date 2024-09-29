@@ -14,7 +14,9 @@ onnxruntime==1.12.0
 stable-baselines3==2.2.1
 torch==2.2.2
 shimmy==1.3.0
-
+numpy==1.21.0
+gym==0.23.0
+matplotlib==3.8.4
 
 
 
