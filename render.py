@@ -2,10 +2,16 @@ import matplotlib.pyplot as plt
 from SnakeGame.snakeGame import SnakeGame
 from stable_baselines3 import PPO
 
+# PLAYER2_MODEL = "PPO_16/340000"
+PLAYER2_MODEL = None
+MODEL_TO_LOAD = "PPO_20/1260000"
 
-model = PPO.load(f"models/PPO_40/3940000.zip")
+model = PPO.load(f"models/{MODEL_TO_LOAD}.zip")
 
-env = SnakeGame(40, 40, "PPO_40/3940000")
+# env = SnakeGame(40, 40, "PPO_1/940000.zip")
+env = SnakeGame(40, 9, PLAYER2_MODEL)
+
+
 observation, info = env.reset()
 
 fig, ax = plt.subplots()
@@ -20,7 +26,9 @@ while True:
     # try:
     #     action = int(input("Enter action: "))
     # except:
-    #     action = 0
+    #     action =0
+    # observation['image'] = observation['image'].reshape((1, 42, 29))  # Adding channel dimension for a grayscale observation
+
     action = model.predict(observation)[0]
     observation, _, done, info = env.step(action)
     if done:

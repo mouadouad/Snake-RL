@@ -1,64 +1,22 @@
 from typing import Callable
 import os
-import numpy as np
-import gymnasium
-from gymnasium import spaces
-import matplotlib.pyplot as plt
 import torch.nn as nn
 from typing import Tuple
 import torch
+import torch as th
+from gymnasium import spaces
 
-from SnakeGame.snakeGame import SnakeGame
+
 from stable_baselines3 import PPO
-from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3.common.policies import ActorCriticPolicy, ActorCriticCnnPolicy, MultiInputActorCriticPolicy
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+
+from snakeEnv import Snake
 
 PIXELS = 40
 OBS_SIZE = 40
-PLAYER2_MODEL = None
-MODEL_TO_LOAD = "PPO_14/2860000"
-
-
-class Snake(gymnasium.Env):
-    def __init__(self, pixels, obs_size, player2_model):
-        super(Snake, self).__init__()
-        self.game = SnakeGame(pixels, obs_size, player2_model)
-        self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Box(low=0, high=2, shape=self.game.observation_spec(), dtype=np.int32)
-        self.is_render = False
-        self.cax = None
-
-    def reset(self, **kwargs):
-        return self.game.reset()
-
-    def step(self, action):
-        step = self.game.step(action)
-        if self.is_render:
-            self.cax.set_data(self.game.board.board)
-            plt.draw()
-            plt.pause(0.1)
-        return *step, {}
-
-    def set_player2_model(self, model_name):
-        self.game.set_player2_model(model_name)
-
-    def render(self, mode='human'):
-        self.is_render = True
-        fig, ax = plt.subplots()
-        self.cax = ax.imshow(self.game.board.board, cmap='viridis')
-        fig.colorbar(self.cax)
-        plt.show(block=False)
-        plt.draw()
-        plt.pause(0.1)
-
-        def on_close(event):
-            self.is_render = False
-            plt.close()
-
-        fig.canvas.mpl_connect('close_event', on_close)
-
-    def close(self):
-        self.is_render = False
-        plt.close()
+PLAYER2_MODEL = "PPO_47/240000"
+MODEL_TO_LOAD = "PPO_47/240000"
 
 
 class CustomNetwork(nn.Module):
@@ -110,7 +68,6 @@ class CustomNetwork(nn.Module):
     def forward_critic(self, features: torch.Tensor) -> torch.Tensor:
         return self.value_net(features)
 
-
 class CustomActorCriticPolicy(ActorCriticPolicy):
     def __init__(
             self,
@@ -131,7 +88,62 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = CustomNetwork(self.features_dim)
+class CustomCNN(BaseFeaturesExtractor):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 256):
+        # The features_dim corresponds to the size of the last layer output after CNN
+        super(CustomCNN, self).__init__(observation_space, features_dim)
+        n_input_channels = 1
+        
+        # Define the CNN layers
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),  # Output size: (32, H/2, W/2)
 
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),  # Output size: (64, H/4, W/4)
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),  # Output size: (128, H/8, W/8)
+            
+            nn.Flatten()
+        )
+
+        # Compute the size of the flattened output from the CNN
+        with th.no_grad():
+            sample_input = th.as_tensor(observation_space.sample()[None]).float()  # A sample observation
+            print(sample_input.shape)
+            n_flatten = self.cnn(sample_input).shape[1]
+            print(n_flatten)
+
+        # Create the final fully connected layer that outputs the feature vector
+        self.linear = nn.Sequential(
+            nn.Linear(n_flatten, features_dim),
+            nn.ReLU()
+        )
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        # Pass observations through the CNN and fully connected layer
+        return self.linear(self.cnn(observations))
+
+# Step 2: Define a custom ActorCritic policy that uses this CNN feature extractor
+class CustomActorCriticCNNPolicy(ActorCriticPolicy):
+    """
+    Custom Actor-Critic Policy with a CNN feature extractor.
+    """
+    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
+        print(action_space)
+        # Specify the feature extractor class (our custom CNN)
+        super(CustomActorCriticCNNPolicy, self).__init__(
+            observation_space,
+            action_space,
+            lr_schedule,
+            features_extractor_class=CustomCNN,
+            features_extractor_kwargs=dict(features_dim=256),  # Dimensionality of final output of CNN
+            **kwargs
+        )
 
 log_dir = "logs"
 TIMESTEPS = 20000
@@ -150,9 +162,14 @@ if not os.path.exists(log_dir):
 env = Snake(pixels=PIXELS, obs_size=OBS_SIZE, player2_model=PLAYER2_MODEL)
 env.reset()
 
-model = PPO(CustomActorCriticPolicy, env, verbose=1, tensorboard_log=log_dir, device="cpu", ent_coef=0.001)
+# net_arch = dict(pi=[256, 128, 128],  
+#                  vf=[256, 128, 128])  net_arch=net_arch,
 
-# model = PPO.load(f"models/{MODEL_TO_LOAD}", env, verbose=1, tensorboard_log=log_dir, device="cuda")
+model = PPO(ActorCriticCnnPolicy, env, verbose=1, tensorboard_log=log_dir, device="cuda",
+             policy_kwargs=dict( normalize_images=False))
+
+# model = PPO.load(f"models/{MODEL_TO_LOAD}", env, vverbose=1, tensorboard_log=log_dir, device="cuda",
+#                   learning_rate=0.0003, ent_coef=0.001, vf_coef=0.5)
 for i in range(1, 200):
     model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_{model_number}")
     model.save(f"{model_dir}/{TIMESTEPS * i}")
