@@ -55,3 +55,28 @@ class Board:
                 else:
                     observation[i, j] = board[x, y]
         return observation.reshape(1, observation.shape[0], observation.shape[1])
+
+    def distance(self, snake):
+        straight = 0
+        head = tuple(snake.head)
+        while self.can_advance(*head):
+            straight += 1
+            head = self.next_position(head, snake.direction)
+        
+        right = 0
+        head = tuple(snake.head)
+        right_direction = list(Directions)[(snake.direction.value + 1) % 4]
+        head = self.next_position(head, right_direction)
+        while self.can_advance(*head):
+            right += 1
+            head = self.next_position(head, right_direction)
+
+        left = 0
+        head = tuple(snake.head)
+        left_direction = list(Directions)[(snake.direction.value - 1) % 4]
+        head = self.next_position(head, left_direction)
+        while self.can_advance(*head):
+            left += 1
+            head = self.next_position(head, left_direction)
+
+        return np.array([straight, right, left], dtype=np.int32)

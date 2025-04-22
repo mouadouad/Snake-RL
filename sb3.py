@@ -10,6 +10,7 @@ class BoardMultiScaleExtractor(BaseFeaturesExtractor):
         super(BoardMultiScaleExtractor, self).__init__(observation_space, features_dim)
         board_shape = observation_space['board'].shape 
         local_shape = observation_space['local'].shape  
+        distance_shape = observation_space['distance'].shape
 
         self.board_net = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
@@ -29,7 +30,13 @@ class BoardMultiScaleExtractor(BaseFeaturesExtractor):
         )
         local_output_dim = 16 * local_shape[1] * local_shape[2]
 
-        total_dim = board_output_dim + local_output_dim
+        self.distanc = nn.Sequential(
+            nn.Linear(distance_shape[0], 32),
+            nn.ReLU()
+        )
+        distance_output_dim = 32
+
+        total_dim = board_output_dim + local_output_dim + distance_output_dim
         self.mlp = nn.Sequential(
             nn.Linear(total_dim, features_dim),
             nn.ReLU()
@@ -38,7 +45,8 @@ class BoardMultiScaleExtractor(BaseFeaturesExtractor):
     def forward(self, obs):
         board_feat = self.board_net(obs['board'])
         local_feat = self.local_net(obs['local'])
-        combined = torch.cat([board_feat, local_feat], dim=1)
+        distance_feat = self.distanc(obs['distance'])
+        combined = torch.cat([board_feat, local_feat, distance_feat], dim=1)
         return self.mlp(combined)
 
 PIXELS = 40

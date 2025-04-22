@@ -42,6 +42,7 @@ class SnakeGame:
         return {
             'board': self.preProcess(),
             'local': self.board.observation(self.my_snake.head, self.board.board, self.board.obs_size),
+            'distance': self.board.distance(self.my_snake),
         }, dict()
         
 
@@ -111,6 +112,7 @@ class SnakeGame:
         return {
             'board': self.preProcess(),
             'local': self.board.observation(self.my_snake.head, self.board.board, self.board.obs_size),
+            'distance': self.board.distance(self.my_snake),
         }, reward, done, dict()
 
     def preProcess(self):

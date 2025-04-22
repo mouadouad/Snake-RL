@@ -12,7 +12,8 @@ class Snake(gymnasium.Env):
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Dict({
             'board': spaces.Box(low=-2, high=2, shape=self.game.observation_spec(), dtype=np.int32),
-            'local': spaces.Box(low=-2, high=2, shape=(1, obs_size, obs_size), dtype=np.int32)
+            'local': spaces.Box(low=-2, high=2, shape=(1, obs_size, obs_size), dtype=np.int32),
+            'distance': spaces.Box(low=0, high=40, shape=(3,), dtype=np.int32),
         }) 
         # self.observation_space = spaces.Box(low=0, high=2, shape=self.game.observation_spec(), dtype=np.float32)
         self.is_render = False
