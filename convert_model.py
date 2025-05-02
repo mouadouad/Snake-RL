@@ -22,14 +22,14 @@ class OnnxablePolicy(th.nn.Module):
         action_hidden, value_hidden = self.extractor(observation_flat)
         return self.action_net(action_hidden), self.value_net(value_hidden)
 
-
-model = PPO.load("models/PPO_10/280000.zip", device="cpu")
+model = PPO.load("models/PPO_25/3700000.zip", device="cpu")
 onnxable_model = OnnxablePolicy(
     model.policy.mlp_extractor, model.policy.action_net, model.policy.value_net
 )
 
-observation_size = model.observation_space.shape
+observation_size = model.observation_space
 dummy_input = th.randn(1, *observation_size)
+
 th.onnx.export(
     onnxable_model,
     dummy_input,

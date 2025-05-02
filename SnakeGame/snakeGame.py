@@ -15,7 +15,6 @@ class SnakeGame:
         if player2_model:
             self.player2_model = PPO.load(f"models/{player2_model}")
         side = random.randint(0, 4)
-        # side = 3
         self.my_snake = Snake(side, self.board.rows_count, self.board.columns_count)
         self.his_snake = Snake((side + 2) % 4, self.board.rows_count, self.board.columns_count)
         self.board.starting_position(self.my_snake.head, self.his_snake.head)
@@ -31,7 +30,6 @@ class SnakeGame:
     def reset(self):
         self.board.reset()
         side = random.randint(0, 4)
-        # side = 3
         self.my_snake = Snake(side, self.board.rows_count, self.board.columns_count)
         self.his_snake = Snake((side + 2) % 4, self.board.rows_count, self.board.columns_count)
         self.board.starting_position(self.my_snake.head, self.his_snake.head)
@@ -40,9 +38,10 @@ class SnakeGame:
         self.score = 0
 
         return {
-            'board': self.preProcess(),
+            # 'board': self.preProcess(),
             'local': self.board.observation(self.my_snake.head, self.board.board, self.board.obs_size),
             'distance': self.board.distance(self.my_snake),
+            'obstacle_ahead': self.obstacle_ahead(),
         }, dict()
         
 
@@ -86,13 +85,14 @@ class SnakeGame:
         next_position, next_direction, head = self.get_next_position(self.my_snake, action)
         done = False
         reward = 0
+        info = {}
 
-        if action != 0:
-            next, _, _ = self.get_next_position(self.my_snake, 0)
-            if not self.board.can_advance(*next) and self.board.can_advance(*next_position):
-                reward += 0.3
-        else:
-            reward += 0.1
+        # if action != 0:
+        #     next, _, _ = self.get_next_position(self.my_snake, 0)
+        #     if not self.board.can_advance(*next) and self.board.can_advance(*next_position):
+        #         reward += 0.2
+        # else:
+        #     reward += 0.08
         
         # if not self.isPlaying:
         #     reward += 3
@@ -103,22 +103,33 @@ class SnakeGame:
             self.my_snake.set_head(next_position)
             self.my_snake.set_direction(next_direction)
             # reward += 0.2 + 1.01 ** self.score - 1
-            reward += 0.25
+            reward += 0.2
         elif not self.won:
             self.isPlaying = False
-            reward -= 1
+            # next, _, _ = self.get_next_position(self.my_snake, (action+1)%3)
+            # if self.board.can_advance(*next):
+            #     reward -= 0.7
+            # next, _, _ = self.get_next_position(self.my_snake, (action+2)%3)
+            # if self.board.can_advance(*next):
+            #     reward -= 0.7
+            reward = -1
             done = True
 
         return {
-            'board': self.preProcess(),
+            # 'board': self.preProcess(),
             'local': self.board.observation(self.my_snake.head, self.board.board, self.board.obs_size),
             'distance': self.board.distance(self.my_snake),
-        }, reward, done, dict()
+            'obstacle_ahead': self.obstacle_ahead(),
+        }, reward, done, info
 
     def preProcess(self):
         return np.pad(
             self.board.board, pad_width=1, mode='constant', constant_values=-1).reshape(
                 1, self.board.rows_count+2, self.board.columns_count+2)
+
+    def obstacle_ahead(self):
+        next_position, _, _ = self.get_next_position(self.my_snake, 0)
+        return np.array([1 if self.board.can_advance(*next_position) else 0], dtype=np.int32)
 
     # def preProcess2(self, snake):
     #     bordered_matrix = np.pad(self.board.board, pad_width=1, mode='constant', constant_values=-1)

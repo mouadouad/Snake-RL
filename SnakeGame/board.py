@@ -1,4 +1,5 @@
 import numpy as np
+import random 
 from SnakeGame.directions import Directions
 
 
@@ -11,9 +12,26 @@ class Board:
         self.rows_count = int(self.height / pixels)
         self.columns_count = int(self.width / pixels)
         self.board = np.zeros((self.rows_count, self.columns_count), dtype=np.int32)
+        # self.add_obstacles(5)
 
+    def add_obstacle(self, x, y, direction, length):
+        for i in range(length):
+            self.board[x , y] = -1
+            x += (1 - direction)
+            y += direction
+            if x >= self.rows_count or y >= self.columns_count:
+                break
+    def add_obstacles(self, num_obstacles):
+        for i in range(num_obstacles):
+            x = random.randint(0, self.rows_count - 1)
+            y = random.randint(0, self.columns_count - 1)
+            lenght = random.randint(1, 5)
+            direction = random.randint(0, 1)
+            self.add_obstacle(x, y, direction, lenght)
+            
     def reset(self):
         self.board = np.zeros((self.rows_count, self.columns_count), dtype=np.int32)
+        # self.add_obstacles(5)
 
     def starting_position(self, position, opponent_position):
         self.board[position[0], position[1]] = 2
@@ -51,7 +69,7 @@ class Board:
                 x = head[0] - n//2 + i
                 y = head[1] - n//2 + j
                 if x < 0 or x >= self.rows_count or y < 0 or y >= self.columns_count:
-                    observation[i, j] = -1
+                    observation[i, j] = 1
                 else:
                     observation[i, j] = board[x, y]
         return observation.reshape(1, observation.shape[0], observation.shape[1])
@@ -59,6 +77,7 @@ class Board:
     def distance(self, snake):
         straight = 0
         head = tuple(snake.head)
+        head = self.next_position(head, snake.direction)
         while self.can_advance(*head):
             straight += 1
             head = self.next_position(head, snake.direction)

@@ -4,7 +4,7 @@ from stable_baselines3 import PPO
 
 # PLAYER2_MODEL = "PPO_16/340000"
 PLAYER2_MODEL = None
-MODEL_TO_LOAD = "PPO_20/1260000"
+MODEL_TO_LOAD = "PPO_25/4560000"
 
 model = PPO.load(f"models/{MODEL_TO_LOAD}.zip")
 
@@ -13,6 +13,7 @@ env = SnakeGame(40, 9, PLAYER2_MODEL)
 
 
 observation, info = env.reset()
+print(observation)
 
 fig, ax = plt.subplots()
 grid = env.board.board
